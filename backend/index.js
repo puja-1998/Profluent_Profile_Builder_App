@@ -23,7 +23,7 @@ ConnectDB();
 
 //middleware
 app.use(helmet()); // Add security headers
-app.use(cors({ origin: process.env.CLIENT_URL, credentials: true })); // Allow requests from frontend
+app.use(cors({ origin: ["https://profluent-profile-builder-app-frontend.onrender.com/api","http://localhost:5173/api"],  credentials: true })); // Allow requests from frontend
 app.use(express.json({ limit: "1mb" })); // Parse incoming JSON payloads
 app.use(morgan("dev")); // Log each request in console
 app.use(rateLimit({ windowMs: 60_000, max: 120 })); // Limit each IP to 120 requests per minute
