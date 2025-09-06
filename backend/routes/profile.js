@@ -12,8 +12,7 @@ profileRoutes.post("/", requireAuth, createProfile);
 profileRoutes.put("/:id/section", requireAuth, updateProfileSection);
 
 // Get profile details
-// You can change to GET if preferred (then update frontend).
-profileRoutes.post("/:id", requireAuth, getProfile);
+profileRoutes.get("/:id", requireAuth, getProfile);
 
 // Export resume 
 profileRoutes.get("/:id/export", requireAuth, requireCredits, exportResume);

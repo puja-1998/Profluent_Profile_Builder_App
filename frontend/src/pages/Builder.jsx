@@ -30,7 +30,7 @@ export default function Builder() {
   // Fetch profile
   const { data: profile, isLoading, error } = useQuery({
     queryKey: ["profile"],
-    queryFn: () => api.post(`/profile/me`).then((res) => res.data),
+    queryFn: () => api.get(`/profile/me`).then((res) => res.data),
   });
 
   if (isLoading) return <p className="p-6">Loading profile...</p>;

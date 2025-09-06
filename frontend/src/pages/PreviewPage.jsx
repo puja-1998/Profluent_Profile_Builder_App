@@ -10,9 +10,10 @@ export default function PreviewPage() {
   const { id } = useParams();
   const previewRef = useRef();
 
+  //Profile get
   const { data: profile, isLoading, error } = useQuery({
     queryKey: ["profile", id],
-    queryFn: () => api.post(`/profile/${id}`).then((res) => res.data),
+    queryFn: () => api.get(`/profile/${id}`).then((res) => res.data),
   });
 
   if (isLoading) return <p className="p-6 text-gray-500">Loading preview...</p>;
