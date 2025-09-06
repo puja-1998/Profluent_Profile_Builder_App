@@ -7,7 +7,7 @@ export default defineConfig({
   theme: {
     extend: {
       fontFamily: {
-        sans: ["Inter", "sans-serif"], // Professional font
+        sans: ["Inter", "sans-serif"], 
       },
     },
   },
