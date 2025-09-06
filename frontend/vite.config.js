@@ -4,5 +4,15 @@ import tailwindcss from '@tailwindcss/vite'
 
 // https://vite.dev/config/
 export default defineConfig({
+  theme: {
+    extend: {
+      fontFamily: {
+        sans: ["Inter", "sans-serif"], // Professional font
+      },
+    },
+  },
   plugins: [react(),tailwindcss(),],
+   server: {
+    historyApiFallback: true
+  },
 })
