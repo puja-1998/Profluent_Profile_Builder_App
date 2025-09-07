@@ -1,14 +1,8 @@
-
-//   API Client
-//  - Uses Axios
-//  - Automatically attaches JWT token from localStorage
-//  - Base URL comes from .env (VITE_API_URL)
- 
 import axios from "axios";
 
-// Create axios instance with base URL
 export const api = axios.create({
-  baseURL: "https://profluent-profile-builder-app-backend-l3g2.onrender.com/api", 
+  baseURL: import.meta.env.VITE_API_URL || "https://profluent-profile-builder-app-backend-l3g2.onrender.com/api",
+  
 });
 
 // Attach Authorization header if token exists

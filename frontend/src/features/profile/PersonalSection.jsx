@@ -1,153 +1,127 @@
-import { useEffect, useRef } from "react";
-import { useForm } from "react-hook-form";
+import { useState, useEffect } from "react";
+import { api } from "../../lib/api";
+import { toast } from "react-hot-toast";
 import { z } from "zod";
-import { zodResolver } from "@hookform/resolvers/zod";
-import { useMutation, useQueryClient } from "@tanstack/react-query";
-import { api } from "../../lib/api.js";
-import toast from "react-hot-toast";
-import { motion } from "framer-motion";
 
-// Validation schema
-const PersonalSchema = z.object({
-  name: z.string().min(1, "Full name is required"),
-  email: z.string().email("Invalid email"),
-  phone: z.string().min(5, "Phone is required"),
-  summary: z.string().min(1, "Summary is required").max(500, "Summary too long"),
+const personalSchema = z.object({
+  fullName: z.string().min(2, "Full name is required"),
+  email: z.string().email("Enter a valid email"),
+  phone: z.string().optional(),
 });
 
-export default function PersonalSection({ profileId, initial }) {
-  const qc = useQueryClient();
-  const wasValid = useRef(false);
-
-  const {
-    register,
-    handleSubmit,
-    watch,
-    formState: { errors, isDirty, isValid },
-  } = useForm({
-    resolver: zodResolver(PersonalSchema),
-    defaultValues: initial,
-    mode: "onChange",
+export default function PersonalSection({ profileId }) {
+  const [formData, setFormData] = useState({
+    fullName: "",
+    email: "",
+    phone: "",
   });
+  const [errors, setErrors] = useState({});
+  const [saving, setSaving] = useState(false);
 
-  // Save mutation
-  const save = useMutation({
-    mutationFn: (data) =>
-      api.put(`/profile/${profileId}/section`, {
-        sectionType: "personal",
-        data,
-      }),
-    onSuccess: () => {
-      qc.invalidateQueries({ queryKey: ["profile", profileId] });
-    },
-    onError: (err) => {
-      toast.dismiss();
-      if (err.response?.status === 402) {
-        toast.error("Not enough credits. Please top up");
-      } else {
-        toast.error(err.response?.data?.message || "Save failed");
+  // ✅ Load existing data on mount
+  useEffect(() => {
+    async function fetchData() {
+      try {
+        const res = await api.post(`/api/profile/${profileId}`);
+        const section = res.data.sections?.find((s) => s.type === "personal");
+        if (section?.data) setFormData(section.data);
+      } catch (err) {
+        console.error("Failed to fetch personal info", err);
       }
-    },
-  });
-
-  // Handlers
-  const onValid = (values) => {
-    if (isDirty) save.mutate(values);
-  };
-  const onInvalid = () => {
-    toast.dismiss();
-    toast.error("Please fill out required fields correctly");
-  };
-
-  // Autosave with debounce
-  useEffect(() => {
-    if (!isDirty) return;
-    const t = setTimeout(() => {
-      handleSubmit(onValid, onInvalid)();
-    }, 1500);
-    return () => clearTimeout(t);
-  }, [watch(), isDirty]);
-
-  // Show success only once when section first becomes valid
-  useEffect(() => {
-    if (isValid && !wasValid.current) {
-      toast.success("Personal section completed");
     }
-    wasValid.current = isValid;
-  }, [isValid]);
+    fetchData();
+  }, [profileId]);
+
+  // ✅ Autosave (debounced 2s)
+  useEffect(() => {
+    const timeout = setTimeout(async () => {
+      const validation = personalSchema.safeParse(formData);
+      if (!validation.success) {
+        const fieldErrors = {};
+        validation.error.errors.forEach((err) => {
+          fieldErrors[err.path[0]] = err.message;
+        });
+        setErrors(fieldErrors);
+        return;
+      }
+
+      try {
+        setSaving(true);
+        await axios.put(`/api/profile/${profileId}/section`, {
+          sectionType: "personal",
+          data: formData,
+        });
+        toast.success("Personal details saved!", { id: "personalSaved" });
+      } catch (err) {
+        toast.error("Failed to autosave.", { id: "personalError" });
+      } finally {
+        setSaving(false);
+      }
+    }, 2000);
+
+    return () => clearTimeout(timeout);
+  }, [formData, profileId]);
+
+  const handleChange = (e) => {
+    setFormData((prev) => ({ ...prev, [e.target.name]: e.target.value }));
+    setErrors((prev) => ({ ...prev, [e.target.name]: "" }));
+  };
 
   return (
-    <motion.form
-      className="space-y-5 p-6 bg-white rounded-2xl shadow-md border border-gray-200"
-      initial={{ opacity: 0, y: 20 }}
-      animate={{ opacity: 1, y: 0 }}
-    >
-      <h3 className="text-xl font-semibold text-gray-800">
+    <div className="bg-white shadow-lg rounded-2xl p-8 border border-gray-100">
+      <h2 className="text-2xl font-bold mb-6 text-gray-800 flex items-center justify-between">
         Personal Information
-      </h3>
+        {saving && <span className="text-sm text-blue-500">Saving...</span>}
+      </h2>
+      <form className="grid gap-5">
+        {/* Full Name */}
+        <div>
+          <label className="block text-sm font-medium text-gray-700 mb-1">Full Name</label>
+          <input
+            type="text"
+            name="fullName"
+            placeholder="John Doe"
+            value={formData.fullName}
+            onChange={handleChange}
+            className={`w-full border p-3 rounded-lg focus:ring-2 focus:ring-blue-500 focus:outline-none ${
+              errors.fullName ? "border-red-500" : "border-gray-300"
+            }`}
+          />
+          {errors.fullName && <p className="text-red-500 text-sm mt-1">{errors.fullName}</p>}
+        </div>
 
-      {/* Full Name */}
-      <div>
-        <label className="block text-sm font-medium text-gray-700 mb-1">
-          Full Name <span className="text-red-500">*</span>
-        </label>
-        <input
-          {...register("name")}
-          className="w-full rounded-lg border border-gray-300 px-3 py-2 focus:ring-2 focus:ring-blue-500 outline-none"
-          placeholder="e.g., John Doe"
-        />
-        {errors.name && (
-          <p className="text-red-500 text-sm mt-1">{errors.name.message}</p>
-        )}
-      </div>
+        {/* Email */}
+        <div>
+          <label className="block text-sm font-medium text-gray-700 mb-1">Email Address</label>
+          <input
+            type="email"
+            name="email"
+            placeholder="example@email.com"
+            value={formData.email}
+            onChange={handleChange}
+            className={`w-full border p-3 rounded-lg focus:ring-2 focus:ring-blue-500 focus:outline-none ${
+              errors.email ? "border-red-500" : "border-gray-300"
+            }`}
+          />
+          {errors.email && <p className="text-red-500 text-sm mt-1">{errors.email}</p>}
+        </div>
 
-      {/* Email */}
-      <div>
-        <label className="block text-sm font-medium text-gray-700 mb-1">
-          Email <span className="text-red-500">*</span>
-        </label>
-        <input
-          {...register("email")}
-          type="email"
-          className="w-full rounded-lg border border-gray-300 px-3 py-2 focus:ring-2 focus:ring-blue-500 outline-none"
-          placeholder="you@example.com"
-        />
-        {errors.email && (
-          <p className="text-red-500 text-sm mt-1">{errors.email.message}</p>
-        )}
-      </div>
-
-      {/* Phone */}
-      <div>
-        <label className="block text-sm font-medium text-gray-700 mb-1">
-          Phone <span className="text-red-500">*</span>
-        </label>
-        <input
-          {...register("phone")}
-          type="tel"
-          className="w-full rounded-lg border border-gray-300 px-3 py-2 focus:ring-2 focus:ring-blue-500 outline-none"
-          placeholder="+91 98765 43210"
-        />
-        {errors.phone && (
-          <p className="text-red-500 text-sm mt-1">{errors.phone.message}</p>
-        )}
-      </div>
-
-      {/* Summary */}
-      <div>
-        <label className="block text-sm font-medium text-gray-700 mb-1">
-          Professional Summary <span className="text-red-500">*</span>
-        </label>
-        <textarea
-          {...register("summary")}
-          rows="4"
-          className="w-full rounded-lg border border-gray-300 px-3 py-2 focus:ring-2 focus:ring-blue-500 outline-none resize-none"
-          placeholder="Brief introduction about yourself"
-        />
-        {errors.summary && (
-          <p className="text-red-500 text-sm mt-1">{errors.summary.message}</p>
-        )}
-      </div>
-    </motion.form>
+        {/* Phone */}
+        <div>
+          <label className="block text-sm font-medium text-gray-700 mb-1">Phone</label>
+          <input
+            type="tel"
+            name="phone"
+            placeholder="+91 9876543210"
+            value={formData.phone}
+            onChange={handleChange}
+            className={`w-full border p-3 rounded-lg focus:ring-2 focus:ring-blue-500 focus:outline-none ${
+              errors.phone ? "border-red-500" : "border-gray-300"
+            }`}
+          />
+          {errors.phone && <p className="text-red-500 text-sm mt-1">{errors.phone}</p>}
+        </div>
+      </form>
+    </div>
   );
 }
